@@ -12,14 +12,44 @@ use App\Models\Peminjaman;
 use App\Models\Pengembalian;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class AdminController extends Controller
 {
-    # Menampilkan Dashboard Admin & Log Aktivitas
+    // Halaman dashboard admin: ringkasan jumlah data di setiap menu
     public function index()
     {
-        $logs = LogAktivitas::with('user')->latest()->take(10)->get();
-        return view('admin.dashboard', compact('logs'));
+        $stats = [
+            'user' => [
+                'total' => User::count(),
+                'admin' => User::where('role', 'admin')->count(),
+                'petugas' => User::where('role', 'petugas')->count(),
+                'peminjam' => User::where('role', 'peminjam')->count(),
+            ],
+            'kategori' => [
+                'total' => Kategori::count(),
+            ],
+            'alat' => [
+                'total' => Alat::count(),
+                'total_stok' => (int) Alat::sum('stok'),
+            ],
+            'peminjaman' => [
+                'total' => Peminjaman::count(),
+                'diajukan' => Peminjaman::where('status', 'diajukan')->count(),
+                'dipinjam' => Peminjaman::where('status', 'dipinjam')->count(),
+                'dikembalikan' => Peminjaman::where('status', 'dikembalikan')->count(),
+                'telat' => Peminjaman::where('status', 'telat')->count(),
+            ],
+            'pengembalian' => [
+                'total' => Pengembalian::count(),
+                
+            ],
+            'log_aktivitas' => [
+                'total' => LogAktivitas::count(),
+            ],
+        ];
+
+        return view('admin.dashboard', compact('stats'));
     }
 
     public function indexAlat()
@@ -152,15 +182,33 @@ class AdminController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role' => 'required|string|in:admin,petugas,peminjam',
+            'no_hp' => 'nullable|string|max:15',
+            'foto_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        User::create([
+        $data = [
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
             'no_hp' => $request->no_hp,
-        ]);
+        ];
+
+        // Simpan foto profil langsung ke public/storage/profiles
+        if ($request->hasFile('foto_profile')) {
+            $file = $request->file('foto_profile');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            
+            // Pastikan folder public/storage/profiles ada
+            if (!file_exists(public_path('storage/profiles'))) {
+                mkdir(public_path('storage/profiles'), 0777, true);
+            }
+
+            $file->move(public_path('storage/profiles'), $filename);
+            $data['foto_profile'] = 'storage/profiles/' . $filename;
+        }
+
+        User::create($data);
 
         return redirect()->route('admin.user.index')->with('success', 'User berhasil ditambahkan.');
     }
@@ -179,7 +227,10 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|string|in:admin,petugas,peminjam',
+            'no_hp' => 'nullable|string|max:15',
+            'foto_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
+
         $data = [
             'name' => $request->name,
             'email' => $request->email,
@@ -191,6 +242,23 @@ class AdminController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
+        // Hapus foto lama (jika ada) dan simpan foto baru langsung ke public/storage/profiles
+        if ($request->hasFile('foto_profile')) {
+            if ($user->foto_profile && file_exists(public_path($user->foto_profile))) {
+                unlink(public_path($user->foto_profile));
+            }
+
+            $file = $request->file('foto_profile');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            
+            if (!file_exists(public_path('storage/profiles'))) {
+                mkdir(public_path('storage/profiles'), 0777, true);
+            }
+
+            $file->move(public_path('storage/profiles'), $filename);
+            $data['foto_profile'] = 'storage/profiles/' . $filename;
+        }
+
         $user->update($data);
 
         return redirect()->route('admin.user.index')->with('success', 'User berhasil diperbarui.');
@@ -199,6 +267,12 @@ class AdminController extends Controller
     public function destroyUser($id)
     {
         $user = User::findOrFail($id);
+        
+        // Hapus file fisik foto profil jika ada
+        if ($user->foto_profile && file_exists(public_path($user->foto_profile))) {
+            unlink(public_path($user->foto_profile));
+        }
+
         $user->delete();
         
         return redirect()->route('admin.user.index')->with('success', 'User berhasil dihapus.');
@@ -427,7 +501,7 @@ class AdminController extends Controller
     {
         $peminjamans = Peminjaman::with(['user', 'detailPinjam.alat'])->where('status', 'dipinjam')->get();
         $petugas = User::where('role', 'petugas')->get();
-                        
+                    
         return view('admin.pengembalian.create', compact('peminjamans', 'petugas'));
     }
 
@@ -461,7 +535,7 @@ class AdminController extends Controller
 
             DB::commit();
             return redirect()->route('admin.pengembalian.index')
-                             ->with('success', 'Data pengembalian berhasil dicatat dan stok dipulihkan.');
+                           ->with('success', 'Data pengembalian berhasil dicatat dan stok dipulihkan.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -480,5 +554,65 @@ class AdminController extends Controller
         $pengembalian->delete();
 
         return redirect()->route('admin.pengembalian.index')->with('success', 'Data pengembalian berhasil dihapus.');
+    }
+
+    // Menampilkan Laporan admin
+    public function indexLaporan(Request $request)
+    {
+        $query = Peminjaman::with(['user', 'detailPinjam.alat', 'pengembalian']);
+
+        // Filter Rentang Tanggal
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('tgl_pinjam', [$request->start_date, $request->end_date]);
+        }
+
+        // Filter Status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $peminjamans = $query->latest()->paginate(15)->withQueryString();
+        return view('admin.laporan.index', compact('peminjamans'));
+    }
+
+    // Memproses cetak/download PDF
+    public function cetakLaporan(Request $request)
+    {
+        $query = Peminjaman::with(['user', 'detailPinjam.alat', 'pengembalian']);
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('tgl_pinjam', [$request->start_date, $request->end_date]);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $peminjamans = $query->latest()->get(); // Tarik semua data tanpa paginasi untuk dicetak
+        
+        // Load view PDF
+        $pdf = Pdf::loadView('admin.laporan.pdf', compact('peminjamans', 'request'));
+        
+        // Mengunduh/membuka file PDF
+        return $pdf->stream('Laporan-Peminjaman-'.date('Y-m-d').'.pdf');
+    }
+
+    // Halaman khusus daftar log aktivitas (dipindahkan dari dashboard)
+    public function logAktivitas(Request $request)
+    {
+        $search = $request->input('search');
+
+        $logs = LogAktivitas::with('user')
+            ->when($search, function ($query, $search) {
+                return $query->where('aktivitas', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            })
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('admin.logAktivitas.index', compact('logs', 'search'));
     }
 }

@@ -5,7 +5,8 @@
 
 @section('content')
 <div class="max-w-xl bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <form action="{{ route('admin.user.store') }}" method="POST">
+    <!-- Tambahkan enctype="multipart/form-data" di sini agar form dapat mengunggah file -->
+    <form action="{{ route('admin.user.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         <div class="mb-4">
@@ -32,16 +33,26 @@
         <div class="mb-4">
             <label class="block text-gray-700 text-sm font-semibold mb-2">Role / Hak Akses</label>
             <select name="role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="peminjam">Peminjam</option>
-                <option value="petugas">Petugas</option>
-                <option value="admin">Admin</option>
+                <option value="peminjam" {{ old('role') == 'peminjam' ? 'selected' : '' }}>Peminjam</option>
+                <option value="petugas" {{ old('role') == 'petugas' ? 'selected' : '' }}>Petugas</option>
+                <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
             </select>
+            @error('role') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
         </div>
 
-        <div class="mb-6">
+        <div class="mb-4">
             <label class="block text-gray-700 text-sm font-semibold mb-2">No. HP (Opsional)</label>
             <input type="text" name="no_hp" value="{{ old('no_hp') }}"
                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            @error('no_hp') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+        </div>
+
+        <!-- Input Foto Profil Baru -->
+        <div class="mb-6">
+            <label class="block text-gray-700 text-sm font-semibold mb-2">Foto Profil (Opsional)</label>
+            <input type="file" name="foto_profile" accept="image/*"
+                   class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-300 rounded-lg">
+            @error('foto_profile') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
         </div>
 
         <div class="flex justify-end space-x-2">

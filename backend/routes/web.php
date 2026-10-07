@@ -37,13 +37,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/alat/create', [AdminController::class, 'createAlat'])->name('alat.create');
     Route::post('/alat', [AdminController::class, 'storeAlat'])->name('alat.store');
     Route::get('/alat/{id}/edit', [AdminController::class, 'editAlat'])->name('alat.edit');
-    Route::put('/alat/{id}', [AdminController::class, 'updateAlat'])->name('alat.update');
+    Route::put('/alat/{id}', [AdminController::class, 'updateAlalat'])->name('alat.update');
     Route::delete('/alat/{id}', [AdminController::class, 'destroyAlat'])->name('alat.destroy');
 
     # CRUD User
     Route::get('/user', [AdminController::class, 'indexUser'])->name('user.index');
     Route::get('/user/create', [AdminController::class, 'createUser'])->name('user.create');
-    Route::post('/users', [AdminController::class, 'storeUser'])->name('user.store');
+    Route::post('/user', [AdminController::class, 'storeUser'])->name('user.store'); // Diubah dari /users ke /user
     Route::get('/user/{id}/edit', [AdminController::class, 'editUser'])->name('user.edit');
     Route::put('/user/{id}', [AdminController::class, 'updateUser'])->name('user.update');
     Route::delete('/user/{id}', [AdminController::class, 'destroyUser'])->name('user.destroy');
@@ -68,6 +68,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/pengembalian/create', [AdminController::class, 'createPengembalian'])->name('pengembalian.create');
     Route::post('/pengembalian', [AdminController::class, 'storePengembalian'])->name('pengembalian.store'); 
     Route::delete('/pengembalian/{id}', [AdminController::class, 'destroyPengembalian'])->name('pengembalian.destroy');
+
+    # Fitur Laporan
+    Route::get('/laporan', [AdminController::class, 'indexLaporan'])->name('laporan.index');
+    Route::get('/laporan/cetak', [AdminController::class, 'cetakLaporan'])->name('laporan.cetak');
+
+    # Fitur Log Aktivitas
+    Route::get('/logAktivitas', [AdminController::class, 'LogAktivitas'])->name('logAktivitas.index');
 });
 
 # Petugas
@@ -81,7 +88,6 @@ Route::middleware(['auth', 'role:petugas,admin'])->prefix('petugas')->name('petu
     Route::get('/pengembalian', [PetugasController::class, 'indexPengembalian'])->name('pengembalian.index');
 
     # Laporan
-    # Fitur Laporan
     Route::get('/laporan', [PetugasController::class, 'indexLaporan'])->name('laporan.index');
     Route::get('/laporan/cetak', [PetugasController::class, 'cetakLaporan'])->name('laporan.cetak');
 });
@@ -92,6 +98,7 @@ Route::middleware(['auth', 'role:peminjam'])->prefix('peminjam')->name('peminjam
     Route::get('/katalog', [PeminjamController::class, 'katalogAlat'])->name('katalog');
     Route::post('/peminjaman/ajukan', [PeminjamController::class, 'ajukanPeminjaman'])->name('peminjaman.ajukan');
     Route::get('/riwayat', [PeminjamController::class, 'riwayatPeminjaman'])->name('riwayat');
+    Route::delete('/riwayat/{id}', [PeminjamController::class, 'hapus'])->name('hapus');
 });
 
 # Route Tamu (belum login)

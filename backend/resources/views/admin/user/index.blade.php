@@ -50,6 +50,7 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider">
+                        <th class="py-3 px-4 border-b">Foto</th>
                         <th class="py-3 px-4 border-b">Nama</th>
                         <th class="py-3 px-4 border-b">Email</th>
                         <th class="py-3 px-4 border-b">Role / Hak Akses</th>
@@ -60,6 +61,17 @@
                 <tbody class="text-gray-700 text-sm">
                     @forelse($users as $user)
                         <tr class="hover:bg-gray-50 transition">
+                            <!-- Kolom Foto Profil / Fallback Inisial -->
+                            <td class="py-3 px-4 border-b">
+                                @if($user->foto_profile)
+                                    <img src="{{ asset($user->foto_profile) }}" alt="{{ $user->name }}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-200">
+                                @else
+                                    <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                                        {{ strtoupper(substr($user->name, 0, 2)) }}
+                                    </div>
+                                @endif
+                            </td>
+
                             <td class="py-3 px-4 border-b font-medium text-gray-900">{{ $user->name }}</td>
                             <td class="py-3 px-4 border-b">{{ $user->email }}</td>
                             <td class="py-3 px-4 border-b">
@@ -92,7 +104,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-4 text-center text-gray-500">Belum ada data pengguna.</td>
+                            <td colspan="6" class="py-4 text-center text-gray-500">Belum ada data pengguna.</td>
                         </tr>
                     @endforelse
                 </tbody>

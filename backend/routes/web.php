@@ -37,7 +37,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/alat/create', [AdminController::class, 'createAlat'])->name('alat.create');
     Route::post('/alat', [AdminController::class, 'storeAlat'])->name('alat.store');
     Route::get('/alat/{id}/edit', [AdminController::class, 'editAlat'])->name('alat.edit');
-    Route::put('/alat/{id}', [AdminController::class, 'updateAlalat'])->name('alat.update');
+    Route::put('/alat/{id}', [AdminController::class, 'updateAlat'])->name('alat.update');
     Route::delete('/alat/{id}', [AdminController::class, 'destroyAlat'])->name('alat.destroy');
 
     # CRUD User

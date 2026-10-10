@@ -543,18 +543,26 @@ class AdminController extends Controller
         }
     }
 
-    public function destroyPengembalian($id)
-    {
-        $pengembalian = Pengembalian::findOrFail($id);
+    public function destroyPengembalian($id) {
+    $pengembalian = Pengembalian::with('peminjaman.detailPinjam.alat')->findOrFail($id);
 
-        if ($pengembalian->peminjaman) {
-            $pengembalian->peminjaman->update(['status' => 'dipinjam']);
+    if ($pengembalian->peminjaman) {
+        // Stok hanya dikurangi lagi jika sebelumnya sudah dipulihkan (status dikembalikan)
+        if (strtolower($pengembalian->peminjaman->status) === 'dikembalikan') {
+            foreach ($pengembalian->peminjaman->detailPinjam as $detail) {
+                if ($detail->alat) {
+                    $detail->alat->decrement('stok', $detail->jumlah);
+                }
+            }
         }
-        
-        $pengembalian->delete();
 
-        return redirect()->route('admin.pengembalian.index')->with('success', 'Data pengembalian berhasil dihapus.');
+        $pengembalian->peminjaman->update(['status' => 'dipinjam']);
     }
+
+    $pengembalian->delete();
+
+    return redirect()->route('admin.pengembalian.index')->with('success', 'Data pengembalian berhasil dihapus.');
+}
 
     // Menampilkan Laporan admin
     public function indexLaporan(Request $request)

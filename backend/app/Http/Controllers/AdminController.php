@@ -551,7 +551,7 @@ class AdminController extends Controller
         if (strtolower($pengembalian->peminjaman->status) === 'dikembalikan') {
             foreach ($pengembalian->peminjaman->detailPinjam as $detail) {
                 if ($detail->alat) {
-                    $detail->alat->decrement('stok', $detail->jumlah);
+                $detail->alat->update(['stok' => max(0, $detail->alat->stok - $detail->jumlah)]);
                 }
             }
         }

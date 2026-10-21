@@ -105,6 +105,47 @@ class PetugasController extends Controller
         return view('admin.pengembalian.index', compact('pengembalians', 'search'));
     }
 
+    
+    // Menampilkan form pemeriksaan pengembalian
+    public function editPengembalian($id)
+    {
+        $pengembalian = Pengembalian::with([
+            'peminjaman.user',
+            'peminjaman.detailPinjam.alat'
+        ])->findOrFail($id);
+
+        return view('petugas.pengembalian.edit', compact('pengembalian'));
+    }
+
+    // Menyimpan hasil pemeriksaan
+    public function updatePengembalian(Request $request, $id)
+    {
+        $request->validate([
+            'kondisi_kembali' => 'required|string',
+            'denda' => 'required|numeric|min:0',
+            'aksi' => 'required|in:setuju,tolak',
+        ]);
+
+        $pengembalian = Pengembalian::findOrFail($id);
+
+        if ($request->aksi == 'setuju') {
+            $pengembalian->update([
+                'kondisi_kembali' => $request->kondisi_kembali,
+                'denda' => $request->denda,
+                'petugas_id' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('petugas.pengembalian.index')
+                ->with('success', 'Pengembalian berhasil disetujui.');
+        }
+
+        return redirect()
+            ->route('petugas.pengembalian.index')
+            ->with('error', 'Pengembalian ditolak.');
+    }
+
+
     // Menampilkan Laporan Petugas
     public function indexLaporan(Request $request)
     {

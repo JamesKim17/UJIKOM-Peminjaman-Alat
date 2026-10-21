@@ -86,6 +86,9 @@ Route::middleware(['auth', 'role:petugas,admin'])->prefix('petugas')->name('petu
 
     # Pemantauan Pengembalian (Read-Only)
     Route::get('/pengembalian', [PetugasController::class, 'indexPengembalian'])->name('pengembalian.index');
+    Route::get('/pengembalian/{id}/edit',[PetugasController::class, 'editPengembalian'])->name('pengembalian.edit');
+    Route::put('/pengembalian/{id}',[PetugasController::class, 'updatePengembalian'])->name('pengembalian.update');
+
 
     # Laporan
     Route::get('/laporan', [PetugasController::class, 'indexLaporan'])->name('laporan.index');

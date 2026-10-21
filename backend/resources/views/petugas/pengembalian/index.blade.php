@@ -36,6 +36,7 @@
                         <th class="py-3 px-4 border-b">Kondisi</th>
                         <th class="py-3 px-4 border-b">Denda</th>
                         <th class="py-3 px-4 border-b">Petugas Verifikasi</th>
+                        <th class="py-3 px-4 border-b">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="text-gray-700 text-sm">
@@ -73,10 +74,16 @@
                             <td class="py-3 px-4 border-b text-gray-600 text-xs font-medium">
                                 {{ $pengembalian->petugas->name ?? 'Sistem' }}
                             </td>
+                            <td class="py-3 px-4 border-b">
+                                <a href="{{ route('petugas.pengembalian.edit', $pengembalian->id) }}"
+                                    class="bg-blue-600 text-white px-3 py-2 rounded-lg">
+                                    Periksa
+                                </a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-6 text-center text-gray-500">Belum ada alat yang dikembalikan.</td>
+                            <td colspan="7" class="py-6 text-center text-gray-500">Belum ada alat yang dikembalikan.</td>
                         </tr>
                     @endforelse
                 </tbody>

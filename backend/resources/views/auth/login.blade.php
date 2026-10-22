@@ -53,6 +53,16 @@
                 class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-200">
                 Masuk
             </button>
+
+            <div class="text-center mt-4">
+            <p class="text-gray-600">
+                Tidak memiliki akun?
+                <a href="{{ route('register') }}"
+                    class="text-blue-600 font-semibold hover:underline">
+                    Register
+                </a>
+            </p>
+        </div>
         </form>
     </div>
 

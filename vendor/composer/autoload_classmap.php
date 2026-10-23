@@ -22,4 +22,6 @@ return array(
     'ReflectionConstant' => $vendorDir . '/symfony/polyfill-php84/Resources/stubs/ReflectionConstant.php',
     'RoundingMode' => $vendorDir . '/symfony/polyfill-php84/Resources/stubs/RoundingMode.php',
     'SortDirection' => $vendorDir . '/symfony/polyfill-php86/Resources/stubs/SortDirection.php',
+    'Time\\Duration' => $vendorDir . '/symfony/polyfill-time/Resources/stubs/Time/Duration.php',
+    'Time\\TimeException' => $vendorDir . '/symfony/polyfill-time/Resources/stubs/Time/TimeException.php',
 );

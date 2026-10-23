@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -36,10 +37,14 @@ class AuthController extends Controller
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ], 201);
-        } catch (\Exception $e) {
+
+        } catch (\Throwable $e) {
+            Log::error('Registrasi API gagal.', [
+                'exception' => $e,
+            ]);
+
             return response()->json([
-                'message' => 'Terjadi kesalahan saat registrasi.',
-                'error' => $e->getMessage()
+                'message' => 'Registrasi gagal. Silakan coba kembali.',
             ], 500);
         }
     }
@@ -50,7 +55,9 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Kredensial yang diberikan tidak cocok dengan data kami.'],
+                'email' => [
+                    'Kredensial yang diberikan tidak cocok dengan data kami.',
+                ],
             ]);
         }
 
@@ -74,10 +81,14 @@ class AuthController extends Controller
 
     public function logout(): JsonResponse
     {
-        auth()->user()->currentAccessToken()->delete();
+        $token = auth()->user()?->currentAccessToken();
+
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+        }
 
         return response()->json([
-            'message' => 'Logout berhasil. Token telah dihapus.',
+            'message' => 'Logout berhasil.',
         ]);
     }
 }

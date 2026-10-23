@@ -12,7 +12,10 @@ class PeminjamController extends Controller
 {
     public function katalogAlat()
     {
-        $alats = Alat::with('kategori')->where('stok', '>', 0)->get();
+        $alats = Alat::with('kategori')
+            ->where('stok', '>', 0)
+            ->get();
+
         return view('peminjam.katalog', compact('alats'));
     }
 
@@ -20,53 +23,88 @@ class PeminjamController extends Controller
     {
         $request->validate([
             'tgl_kembali_plan' => 'required|date|after_or_equal:today',
-            'alat_id' => 'required|array',
+            'alat_id' => 'required|array|min:1',
+            'alat_id.*' => 'required|integer|distinct',
             'jumlah' => 'required|array',
         ]);
 
-        DB::beginTransaction();
+        // Periksa pilihan alat sebelum memulai transaksi.
+        $selectedItems = [];
+
+        foreach ($request->alat_id as $alatId) {
+            $jumlah = $request->jumlah[$alatId] ?? 0;
+
+            if (!is_numeric($jumlah) || (int) $jumlah <= 0) {
+                continue;
+            }
+
+            $selectedItems[$alatId] = (int) $jumlah;
+        }
+
+        if (empty($selectedItems)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Pilih minimal 1 alat dengan jumlah lebih dari 0.');
+        }
+
         try {
-            // Filter: Ambil hanya alat yang jumlahnya > 0
-            $selectedItems = [];
-            foreach ($request->alat_id as $alatId) {
-                $jumlah = $request->jumlah[$alatId] ?? 0;
-                if ($jumlah > 0) {
-                    $selectedItems[$alatId] = $jumlah;
-                }
-            }
+            DB::transaction(function () use ($selectedItems, $request) {
 
-            if (empty($selectedItems)) {
-                return redirect()->back()->withInput()->with('error', 'Pilih minimal 1 alat dengan jumlah lebih dari 0.');
-            }
+                // Periksa stok terbaru dan kunci data alat selama transaksi.
+                $alats = Alat::whereIn('id', array_keys($selectedItems))
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
 
-            // Buat header peminjaman
-            $peminjaman = Peminjaman::create([
-                'user_id' => auth()->id(),
-                'tgl_pinjam' => now(),
-                'tgl_kembali_plan' => $request->tgl_kembali_plan,
-                'status' => 'diajukan',
-            ]);
-
-            // Simpan ke detail_pinjam (Stok TIDAK dikurangi karena masih tahap pengajuan)
-            foreach ($selectedItems as $alatId => $jumlah) {
-                $alat = Alat::findOrFail($alatId);
-
-                if ($alat->stok < $jumlah) {
-                    throw new \Exception("Stok alat {$alat->nama_alat} tidak mencukupi.");
+                // Pastikan semua alat yang dipilih benar-benar ada.
+                if ($alats->count() !== count($selectedItems)) {
+                    throw new \Exception(
+                        'Salah satu alat yang dipilih tidak ditemukan.'
+                    );
                 }
 
-                DetailPinjam::create([
-                    'peminjaman_id' => $peminjaman->id,
-                    'alat_id' => $alatId,
-                    'jumlah' => $jumlah,
+                foreach ($selectedItems as $alatId => $jumlah) {
+                    $alat = $alats->get($alatId);
+
+                    if ($jumlah < 1 || $alat->stok < $jumlah) {
+                        throw new \Exception(
+                            "Stok alat {$alat->nama_alat} tidak mencukupi."
+                        );
+                    }
+                }
+
+                // Buat pengajuan setelah semua stok diperiksa.
+                $peminjaman = Peminjaman::create([
+                    'user_id' => auth()->id(),
+                    'tgl_pinjam' => now(),
+                    'tgl_kembali_plan' => $request->tgl_kembali_plan,
+                    'status' => 'diajukan',
                 ]);
-            }
 
-            DB::commit();
-            return redirect()->route('peminjam.riwayat')->with('success', 'Pengajuan peminjaman berhasil dikirim.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->withInput()->with('error', 'Gagal mengajukan peminjaman: ' . $e->getMessage());
+                // Simpan detail tanpa mengurangi stok.
+                foreach ($selectedItems as $alatId => $jumlah) {
+                    DetailPinjam::create([
+                        'peminjaman_id' => $peminjaman->id,
+                        'alat_id' => $alatId,
+                        'jumlah' => $jumlah,
+                    ]);
+                }
+            });
+
+            return redirect()
+                ->route('peminjam.riwayat')
+                ->with('success', 'Pengajuan peminjaman berhasil dikirim.');
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Gagal mengajukan peminjaman. Periksa kembali pilihan alat dan stok.'
+                );
         }
     }
 
@@ -82,13 +120,23 @@ class PeminjamController extends Controller
 
     public function hapus($id)
     {
-        $peminjaman = Peminjaman::findOrFail($id);
+        $peminjaman = Peminjaman::where('user_id', auth()->id())
+            ->findOrFail($id);
 
-        if (strtolower($peminjaman->status) === 'diajukan') {
-            $peminjaman->delete();
-            return redirect()->back()->with('success', 'Pengajuan peminjaman berhasil dibatalkan.');
+        if (strtolower($peminjaman->status) !== 'diajukan') {
+            return redirect()->back()->with(
+                'error',
+                'Data tidak bisa dihapus karena peminjaman sudah diproses.'
+            );
         }
 
-        return redirect()->back()->with('error', 'Data tidak bisa dihapus karena alat sudah diproses atau dipinjam.');
+        DB::transaction(function () use ($peminjaman) {
+            $peminjaman->delete();
+        });
+
+        return redirect()->back()->with(
+            'success',
+            'Pengajuan peminjaman berhasil dibatalkan.'
+        );
     }
 }

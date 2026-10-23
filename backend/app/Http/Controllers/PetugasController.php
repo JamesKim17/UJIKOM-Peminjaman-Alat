@@ -36,34 +36,57 @@ class PetugasController extends Controller
     }
 
     // Menyetujui Peminjaman (Ubah status & kurangi stok)
+    
     public function setujuPeminjaman($id)
     {
-        DB::beginTransaction();
         try {
-            $peminjaman = Peminjaman::with('detailPinjam')->findOrFail($id);
+            DB::transaction(function () use ($id) {
+                $peminjaman = Peminjaman::with('detailPinjam')
+                    ->lockForUpdate()
+                    ->findOrFail($id);
 
-            // Validasi stok sebelum disetujui
-            foreach ($peminjaman->detailPinjam as $detail) {
-                $alat = Alat::findOrFail($detail->alat_id);
-                if ($alat->stok < $detail->jumlah) {
-                    throw new Exception("Stok alat {$alat->nama_alat} tidak mencukupi.");
+                if (strtolower($peminjaman->status) !== 'diajukan') {
+                    throw new Exception(
+                        'Peminjaman ini sudah diproses sebelumnya.'
+                    );
                 }
-            }
 
-            // Ubah status dan kurangi stok
-            $peminjaman->update(['status' => 'dipinjam']);
+                if ($peminjaman->detailPinjam->isEmpty()) {
+                    throw new Exception(
+                        'Peminjaman tidak memiliki detail alat.'
+                    );
+                }
 
-            foreach ($peminjaman->detailPinjam as $detail) {
-                Alat::where('id', $detail->alat_id)->decrement('stok', $detail->jumlah);
-            }
+                foreach ($peminjaman->detailPinjam as $detail) {
+                    $alat = Alat::lockForUpdate()
+                        ->findOrFail($detail->alat_id);
 
-            DB::commit();
-            return redirect()->back()->with('success', 'Peminjaman disetujui dan stok alat dikurangi.');
+                    if ($detail->jumlah < 1 || $alat->stok < $detail->jumlah) {
+                        throw new Exception(
+                            "Stok alat {$alat->nama_alat} tidak mencukupi."
+                        );
+                    }
+
+                    $alat->decrement('stok', $detail->jumlah);
+                }
+
+                $peminjaman->update([
+                    'status' => 'dipinjam',
+                ]);
+            });
+
+            return redirect()->back()->with(
+                'success',
+                'Peminjaman disetujui dan stok alat berhasil diperbarui.'
+            );
         } catch (Exception $e) {
-            DB::rollback();
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return redirect()->back()->with(
+                'error',
+                'Gagal menyetujui peminjaman: ' . $e->getMessage()
+            );
         }
     }
+
 
     // Menolak Peminjaman (Hapus pengajuan)
     public function tolakPeminjaman($id)

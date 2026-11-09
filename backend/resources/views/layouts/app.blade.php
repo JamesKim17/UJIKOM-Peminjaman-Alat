@@ -154,29 +154,37 @@
                     aria-expanded="false"
                     aria-controls="profileDropdown"
                     class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition text-left focus:outline-none focus:ring-2 focus:ring-blue-500">
-
+                   
                     <!-- FOTO PROFIL -->
+                    @php
+                        $user = auth()->user();
+                        $foto = $user->foto_profile;
+
+                        // Menghilangkan awalan storage/ jika sudah ada
+                        if ($foto) {
+                            $foto = preg_replace('#^storage/#', '', $foto);
+                        }
+                    @endphp
+
                     <div class="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden shrink-0 border-2 border-gray-700">
 
-                        @if(auth()->user()->foto_profile)
-
+                        @if($foto)
                             <img
-                                src="{{ asset(auth()->user()->foto_profile) }}"
-                                alt="Foto profil {{ auth()->user()->name }}"
+                                src="{{ asset('storage/' . $foto) }}"
+                                alt="Foto profil {{ $user->name }}"
                                 class="w-full h-full object-cover"
-                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            >
 
                             <span
-                                class="hidden w-full h-full items-center justify-center text-white font-bold text-sm uppercase">
-                                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 2)) }}
+                                style="display:none"
+                                class="w-full h-full items-center justify-center text-white font-bold text-sm uppercase">
+                                {{ strtoupper(substr($user->name ?? 'U', 0, 2)) }}
                             </span>
-
                         @else
-
                             <span class="text-white font-bold text-sm uppercase">
-                                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 2)) }}
+                                {{ strtoupper(substr($user->name ?? 'U', 0, 2)) }}
                             </span>
-
                         @endif
 
                     </div>

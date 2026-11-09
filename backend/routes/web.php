@@ -86,11 +86,11 @@ Route::middleware(['auth', 'role:petugas,admin'])->prefix('petugas')->name('petu
     Route::post('/peminjaman/{id}/setujui', [PetugasController::class, 'setujuPeminjaman'])->name('peminjaman.setujui');
     Route::post('/peminjaman/{id}/tolak', [PetugasController::class, 'tolakPeminjaman'])->name('peminjaman.tolak');
 
-    # Pemantauan Pengembalian (Read-Only)
+    
+    # Pemantauan & Tambah Pengembalian
     Route::get('/pengembalian', [PetugasController::class, 'indexPengembalian'])->name('pengembalian.index');
-    Route::get('/pengembalian/{id}/edit',[PetugasController::class, 'editPengembalian'])->name('pengembalian.edit');
-    Route::put('/pengembalian/{id}',[PetugasController::class, 'updatePengembalian'])->name('pengembalian.update');
-
+    Route::get('/pengembalian/create', [PetugasController::class, 'createPengembalian'])->name('pengembalian.create');
+    Route::post('/pengembalian', [PetugasController::class, 'storePengembalian'])->name('pengembalian.store');
 
     # Laporan
     Route::get('/laporan', [PetugasController::class, 'indexLaporan'])->name('laporan.index');
